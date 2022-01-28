@@ -1,12 +1,16 @@
-package de.dragon.RFS;
+package de.dragon.RFS.auth;
 
-import javax.xml.ws.spi.http.HttpExchange;
-import java.net.Socket;
-import java.sql.Time;
+import com.sun.net.httpserver.HttpExchange;
+import de.dragon.RFS.Main;
+import de.dragon.RFS.file.TimeStamp;
+
+import java.io.IOException;
 import java.time.Instant;
 import java.util.HashMap;
+import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 
 public class Authenticator {
 
@@ -21,6 +25,9 @@ public class Authenticator {
                         if(Instant.now().getEpochSecond() - v.getTimestamp() >= TimeStamp.SESSION_TIMEOUT) {
                             map.remove(k);
                         }
+                        if(Instant.now().getEpochSecond() - v.getOperationLastChanged() >= 3 && v.getOperation() != null) {
+                            v.setOperation(null);
+                        }
                     });
                 }
             } catch (Exception e) {
@@ -30,11 +37,11 @@ public class Authenticator {
         });
     }
 
-    public Session authConnection(HttpExchange exchange, Socket socket) {
+    public Session authConnection(HttpExchange exchange) throws IOException {
         if(!isConnectionAuth(exchange)) {
             String uuid = UUID.randomUUID().toString();
-            exchange.addResponseHeader("Set-Cookie", "session-id=" + uuid);
-            map.put(uuid, new Session(socket));
+            exchange.getResponseHeaders().add("Set-Cookie", uuid);
+            map.put(uuid, new Session());
 
             return map.get(uuid);
         } else {
@@ -48,15 +55,29 @@ public class Authenticator {
 
     public Session getSession(HttpExchange exchange) {
         //Determine Session
-        String cookiesClient = exchange.getRequestHeader("Cookie");
+        List<String> cookiesClient = exchange.getRequestHeaders().get("Cookie");
         if (cookiesClient == null || !cookiesClient.contains("session-id")) {
             return null;
         } else {
-            int index = cookiesClient.indexOf("session-id");
-            String sessionid = cookiesClient.substring(index + "session-id".length() + 1, cookiesClient.substring(index).contains(";") ? cookiesClient.indexOf(";", index) : cookiesClient.length());
+            String sessionid = "";
+
+            for(String c : cookiesClient) {
+                if(c.contains("session-id")) {
+                    sessionid = c.split("=")[1];
+                }
+            }
 
             return map.get(sessionid);
         }
     }
 
+    public String getClosestName(String name) {
+        AtomicInteger i = new AtomicInteger();
+        map.forEach((k, v) -> {
+            if(v.getName() != null && v.getOperation() == Operation.RECEIVE && v.getName().equals(name)) {
+                i.getAndIncrement();
+            }
+        });
+        return name + (i.get() != 0 ? Integer.toString(i.get()) : "");
+    }
 }
