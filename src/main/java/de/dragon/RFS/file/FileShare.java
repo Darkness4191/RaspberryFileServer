@@ -1,30 +1,32 @@
 package de.dragon.RFS.file;
 
 import de.dragon.RFS.auth.Session;
+import org.apache.commons.fileupload.FileItem;
 
 import java.io.File;
+import java.io.InputStream;
 import java.util.UUID;
 
 public class FileShare extends TimeStamp {
 
-    private File file;
+    private FileItem fileContent;
     private long maxAge;
     private Session sender;
     private Session receiver;
     private String id;
 
-    public FileShare(File file, long maxAge, Session sender, Session receiver) {
+    public FileShare(FileItem fileContent, long maxAge, Session sender, Session receiver) {
         super();
 
-        this.file = file;
+        this.fileContent = fileContent;
         this.maxAge = maxAge;
         this.sender = sender;
         this.receiver = receiver;
         this.id = UUID.randomUUID().toString();
     }
 
-    public File getFile() {
-        return file;
+    public FileItem getFile() {
+        return fileContent;
     }
 
     public String getId() {

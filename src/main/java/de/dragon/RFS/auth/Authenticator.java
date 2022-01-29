@@ -71,6 +71,15 @@ public class Authenticator {
         }
     }
 
+    public Session getSessionByName(String name) {
+        for(Session session : map.values()) {
+            if(session.getName().equals(name)) {
+                return session;
+            }
+        }
+        return null;
+    }
+
     public String getClosestName(String name) {
         AtomicInteger i = new AtomicInteger();
         map.forEach((k, v) -> {

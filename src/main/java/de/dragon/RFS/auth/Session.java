@@ -5,6 +5,7 @@ import de.dragon.RFS.file.TimeStamp;
 
 import java.time.Instant;
 import java.util.HashMap;
+import java.util.UUID;
 
 public class Session extends TimeStamp {
 
@@ -17,10 +18,7 @@ public class Session extends TimeStamp {
         super();
 
         this.files = new HashMap<>();
-    }
-
-    public void setName(String name) {
-        this.name = name;
+        this.name = UUID.randomUUID().toString();
     }
 
     public String getName() {
