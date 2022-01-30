@@ -15,6 +15,7 @@ import org.apache.commons.fileupload.servlet.ServletFileUpload;
 
 import java.io.*;
 import java.net.InetSocketAddress;
+import java.net.URLConnection;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
@@ -42,6 +43,9 @@ public class Main {
         server.createContext("/send", this::send);
         server.setExecutor(null);
         server.start();
+
+        System.out.println("Server started!");
+        System.out.println(new File("./").getAbsolutePath());
     }
 
     private void root(HttpExchange httpExchange) throws IOException {
@@ -75,7 +79,8 @@ public class Main {
                 FileShare file = session.getFiles().get(object.get("file").asObject().get("id"));
                 info.add("link", "/" + file.getId());
 
-                HttpContext create = server.createContext("/" + file.getId(), new HttpHandler() {
+                ArrayList<HttpContext> contexts = new ArrayList<>();
+                contexts.add(server.createContext("/" + file.getId(), new HttpHandler() {
                     @Override
                     public void handle(HttpExchange httpExchange) throws IOException {
                         Session session1 = authenticator.authConnection(httpExchange);
@@ -84,16 +89,17 @@ public class Main {
                             httpExchange.getResponseHeaders().add("accept-ranges", "bytes");
                             httpExchange.getResponseHeaders().add("vary", "Accept-Encoding");
                             sendFile(file.getFile(), httpExchange);
+                            server.removeContext(contexts.get(0));
                         }
                     }
-                });
+                }));
 
-                create.getAttributes().put("timestamp", Instant.now().getEpochSecond());
+                contexts.get(0).getAttributes().put("timestamp", Instant.now().getEpochSecond());
             } else if (object.get("status").toString().equals("deny")) {
                 session.removeFile(session.getFiles().get(object.get("file").asObject().get("id")));
             }
 
-            info.add("device-name", session.getName());
+            info.add("device_name", session.getName());
             sendJson(info, httpExchange);
         }
     }
@@ -120,7 +126,7 @@ public class Main {
                         httpExchange.getRequestBody()));
             } catch (FileUploadException e) {
                 info.add("status", "encoding error");
-                info.add("device-name", session.getName());
+                info.add("device_name", session.getName());
                 sendJson(info, httpExchange);
                 return;
             }
@@ -137,7 +143,7 @@ public class Main {
                     Session receiverSession = authenticator.getSessionByName(receiver);
                     if(receiverSession == null) {
                         info.add("status", "unknown receiver");
-                        info.add("device-name", session.getName());
+                        info.add("device_name", session.getName());
                         sendJson(info, httpExchange);
                         return;
                     } else {
@@ -146,19 +152,20 @@ public class Main {
                     }
                 } else {
                     info.add("status", "failed");
-                    info.add("device-name", session.getName());
+                    info.add("device_name", session.getName());
                     sendJson(info, httpExchange);
                     return;
                 }
             }
 
-            info.add("device-name", session.getName());
+            info.add("device_name", session.getName());
             sendJson(info, httpExchange);
         }
     }
 
     private void sendFile(FileItem f, HttpExchange httpExchange) throws IOException {
         httpExchange.sendResponseHeaders(200, f.getSize());
+        httpExchange.getResponseHeaders().add("Content-Type", getMimeType(f.getName()));
         OutputStream os = httpExchange.getResponseBody();
         InputStream fileInputStream = f.getInputStream();
         int j = 0;
@@ -171,6 +178,7 @@ public class Main {
 
     private void sendFile(File f, HttpExchange httpExchange) throws IOException {
         httpExchange.sendResponseHeaders(200, f.length());
+        httpExchange.getResponseHeaders().add("Content-Type", getMimeType(f.getName()));
         OutputStream os = httpExchange.getResponseBody();
         InputStream fileInputStream = new FileInputStream(f);
         int j = 0;
@@ -179,6 +187,10 @@ public class Main {
             os.write(buffer, 0, j);
         }
         os.close();
+    }
+
+    private String getMimeType(String s) {
+        return URLConnection.guessContentTypeFromName(s);
     }
 
     private void sendJson(JsonObject object, HttpExchange httpExchange) throws IOException {

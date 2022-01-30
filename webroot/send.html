@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Title</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <script src="/jquery-3.6.0.min.js"></script>
+</head>
+<body>
+<input id="receiver" class="nav" type="text">
+<input id="file_input" class="nav" name="file" type="file" multiple>
+<button id="upload" class="nav">Upload</button>
+</body>
+
+<script>
+    $("#upload").click(() => {
+        let files = document.getElementById("file_input").files;
+
+        for (let i = 0; i < files.length; i++) {
+            let formData = new FormData();
+            let obj = new Object();
+            let file = files[i];
+            obj.receiver = $("#receiver").text();
+            formData.append("meta", JSON.stringify(obj));
+            formData.append('file_' + i, files[i]);
+
+            ajaxList[rand] = $.ajax({
+                url: '/send',
+                type: 'post',
+                data: formData,
+                contentType: false,
+                processData: false,
+                success: function (response) {
+                    response.text().then((text) => {
+                        window.alert(JSON.parse(text).status)
+                    })
+                },
+            });
+        }
+    })
+</script>
+
+<style>
+    .nav {
+        display: inline;
+    }
+</style>
+</html>

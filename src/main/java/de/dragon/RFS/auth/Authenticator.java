@@ -40,8 +40,9 @@ public class Authenticator {
     public Session authConnection(HttpExchange exchange) throws IOException {
         if(!isConnectionAuth(exchange)) {
             String uuid = UUID.randomUUID().toString();
-            exchange.getResponseHeaders().add("Set-Cookie", uuid);
+            exchange.getResponseHeaders().add("Set-Cookie", "session-id=" + uuid);
             map.put(uuid, new Session());
+            System.out.println(uuid);
 
             return map.get(uuid);
         } else {
@@ -64,6 +65,7 @@ public class Authenticator {
             for(String c : cookiesClient) {
                 if(c.contains("session-id")) {
                     sessionid = c.split("=")[1];
+                    System.out.println(sessionid);
                 }
             }
 

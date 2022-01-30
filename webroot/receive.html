@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Waiting for files...</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <script src="/jquery-3.6.0.min.js"></script>
+</head>
+<body>
+<div class="dark_background">
+    <div class="center loading">
+        <button class="inline" id="cancel">Cancel</button>
+        <p class="inline" id="loading"> Waiting as </p>
+        <p class="inline" id="device_name"></p>
+        <p class="inline" id="dots">...</p>
+    </div>
+    <div class="center newfile">
+        <button class="inline" id="accept">Accept</button>
+        <button class="inline" id="deny">Deny</button>
+        <p class="inline" id="filename"></p>
+        <p class="inline" id="size"></p>
+        <p class="inline" id="sender"></p>
+        <p class="inline" id="id"></p>
+    </div>
+</div>
+<script>
+    //init
+    $(".newfile").first().hide()
+
+    //queue
+    function Queue() {
+        this.queue = {};
+        this.tail = 0;
+        this.head = 0;
+    }
+
+    Queue.prototype.enqueue = function (element) {
+        this.queue[this.tail++] = element;
+    }
+
+    Queue.prototype.dequeue = function () {
+        if(this.tail == this.head) {
+            return undefined
+        }
+
+        let element = this.queue[this.head]
+        delete element
+        return element
+    }
+
+    let file_queue = new Queue()
+    let currently_displaying = false
+    let current_file;
+
+    //file display
+    function display_queued() {
+        if(!file_queue.queue.empty() && !currently_displaying) {
+            currently_displaying = true
+            current_file = file_queue.dequeue()
+
+            $("#filename").text(current_file.name)
+            $("#size").text(current_file.size)
+            $("#sender").text(current_file.sender)
+            $("#id").text(current_file.id)
+
+            $(".newfile").first().show()
+        }
+    }
+
+    //accept
+    $("#accept").click(function () {
+        obj = new Object()
+        obj.status = "accept"
+        obj.file = current_file
+        $.ajax({
+            type: "POST",
+            url: "/receive",
+            data: JSON.stringify(obj),
+            success: function (response) {
+                response.text().then((text) => {
+                    json = JSON.parse(text)
+                    window.open("/" + json.link);
+                    $(".newfile").first().hide()
+                    currently_displaying = false
+                })
+            }
+        })
+    })
+
+    //accept
+    $("#deny").click(function () {
+        obj = new Object()
+        obj.status = "deny"
+        obj.file = current_file
+        $.ajax({
+            type: "POST",
+            url: "/receive",
+            data: JSON.stringify(obj),
+            success: function (response) {
+                $(".newfile").first().hide()
+                currently_displaying = false
+            }
+        })
+    })
+
+    let i = 0
+
+    //check
+    let t = setInterval(function() {
+        obj = new Object()
+        obj.status = "check"
+        $.ajax({
+            type: "POST",
+            url: "/receive",
+            data: obj,
+            success: function (response) {
+                response.text().then((text) => {
+                    let json = JSON.parse(text)
+                    for (file of json.files) {
+                        file_queue.enqueue(file)
+                    }
+                    if(i == 0) {
+                        $("#device_name").text(response.device_name)
+                        i++;
+                    }
+                })
+            }
+        })
+
+        display_queued()
+    }, 1000)
+
+    $("#cancel").click(function () {
+        clearInterval(t);
+    })
+</script>
+<style>
+    html {
+        width: 100%;
+        height: 100%;
+    }
+    body {
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+        background-color: crimson;
+    }
+    .dark_background {
+        width: 100%;
+        height: 100%;
+        position: fixed;
+        top: 0px;
+        left: 0px;
+        content: '';
+        background: rgba(0, 0, 0, 0.19);
+    }
+    .center {
+        background-color: white;
+        border-radius: 0.3rem;
+        height: 25rem;
+        width: 55rem;
+        margin: 0;
+        position: absolute;
+        top: 30%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+    }
+    .inline {
+        display: inline;
+    }
+</style>
+</body>
+</html>
