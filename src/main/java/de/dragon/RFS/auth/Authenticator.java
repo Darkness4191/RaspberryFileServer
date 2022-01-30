@@ -31,7 +31,7 @@ public class Authenticator {
                         }
                         for(FileShare share : v.getFiles().values()) {
                             if(Instant.now().getEpochSecond() - share.getTimestamp() >= share.getMaxAge()) {
-                                v.removeFile(share);
+                                v.removeFile(share.getId());
                                 share.getFile().delete();
                             }
                         }
@@ -58,6 +58,10 @@ public class Authenticator {
 
     public boolean isConnectionAuth(HttpExchange exchange) {
         return getSession(exchange) != null;
+    }
+
+    public HashMap<String, Session> getSessions() {
+        return new HashMap<>(map);
     }
 
     public Session getSession(HttpExchange exchange) {

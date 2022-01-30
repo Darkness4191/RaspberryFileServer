@@ -36,6 +36,14 @@ public class Main {
     public Main() throws IOException {
         authenticator = new Authenticator();
 
+        Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+            for(Session s : authenticator.getSessions().values()) {
+                for(FileShare share : s.getFiles().values()) {
+                    share.getFile().delete();
+                }
+            }
+        }));
+
         server = HttpServer.create(new InetSocketAddress(80), 0);
         server.createContext("/", this::root);
         server.createContext("/receive", this::receive);
@@ -43,6 +51,10 @@ public class Main {
         server.createContext("/jquery-3.6.0.min.js", (e) -> {
             authenticator.authConnection(e);
             sendFile(new File("./webroot/jquery-3.6.0.min.js"), e);
+        });
+        server.createContext("/basics.js", (e) -> {
+            authenticator.authConnection(e);
+            sendFile(new File("./webroot/basics.js"), e);
         });
         server.setExecutor(null);
         server.start();
@@ -64,7 +76,7 @@ public class Main {
             sendFile(new File("./webroot/receive.html"), httpExchange);
         } else if (httpExchange.getRequestMethod().equals("POST")) {
             JsonObject object = JsonObject.readFrom(new InputStreamReader(httpExchange.getRequestBody()));
-            if (object.get("status").toString().replace("\"", "").equals("check")) {
+            if (object.get("status").asString().equals("check")) {
                 JsonArray array = new JsonArray();
                 for (FileShare share : session.getFiles().values()) {
                     JsonObject file = new JsonObject();
@@ -76,8 +88,8 @@ public class Main {
                 }
 
                 info.add("files", array);
-            } else if (object.get("status").toString().replace("\"", "").equals("accept")) {
-                FileShare file = session.getFiles().get(object.get("file").asObject().get("id"));
+            } else if (object.get("status").asString().equals("accept")) {
+                FileShare file = session.getFiles().get(object.get("file").asObject().get("id").asString());
                 info.add("link", "/" + file.getId());
 
                 ArrayList<HttpContext> contexts = new ArrayList<>();
@@ -96,8 +108,9 @@ public class Main {
                 }));
 
                 contexts.get(0).getAttributes().put("timestamp", Instant.now().getEpochSecond());
-            } else if (object.get("status").toString().replace("\"", "").equals("deny")) {
-                session.removeFile(session.getFiles().get(object.get("file").asObject().get("id")));
+                session.removeFile(object.get("file").asObject().get("id").asString());
+            } else if (object.get("status").asString().equals("deny")) {
+                session.removeFile(object.get("file").asObject().get("id").asString());
             }
 
             info.add("device_name", session.getName());
@@ -139,7 +152,7 @@ public class Main {
                 if (i == 0) {
                     InputStreamReader reader = new InputStreamReader(f.getInputStream());
                     JsonObject target = JsonObject.readFrom(reader);
-                    receiver = target.get("receiver").toString().replace("\"", "");
+                    receiver = target.get("receiver").asString();
                     f.delete();
                 } else if(!receiver.equals("")){
                     Session receiverSession = authenticator.getSessionByName(receiver);
@@ -149,8 +162,10 @@ public class Main {
                         sendJson(info, httpExchange);
                         return;
                     } else {
-                        receiverSession.putFile(new FileShare(f, 500, session, receiverSession));
-                        info.add("status", "success, waiting for confirmation");
+                        FileShare share = new FileShare(f, 500, session, receiverSession);
+                        receiverSession.putFile(share);
+                        info.add("file_id", share.getId());
+                        info.add("status", "success, waiting for confirmation\nFile ID: " + share.getId() + "\nYour ID: " + session.getName());
                     }
                 } else {
                     info.add("status", "failed");

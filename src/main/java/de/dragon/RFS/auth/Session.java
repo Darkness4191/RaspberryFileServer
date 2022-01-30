@@ -37,7 +37,7 @@ public class Session extends TimeStamp {
         files.put(f.getId(), f);
     }
 
-    public void removeFile(FileShare f) {
+    public void removeFile(String f) {
         files.remove(f);
     }
 

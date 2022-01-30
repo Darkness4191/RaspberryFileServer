@@ -5,101 +5,62 @@
     <title>Waiting for files...</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
     <script src="/jquery-3.6.0.min.js"></script>
+    <script src="/basics.js"></script>
 </head>
 <body>
 <div class="dark_background">
     <div class="center loading">
         <button class="inline" id="cancel">Cancel</button>
-        <p class="inline" id="loading"> Waiting as </p>
-        <p class="inline" id="device_name"></p>
-        <p class="inline" id="dots">...</p>
-    </div>
-    <div class="center newfile">
-        <button class="inline" id="accept">Accept</button>
-        <button class="inline" id="deny">Deny</button>
-        <p class="inline" id="filename"></p>
-        <p class="inline" id="size"></p>
-        <p class="inline" id="sender"></p>
-        <p class="inline" id="id"></p>
+        <div class="textDiv">
+            <p class="inline" id="loading"> Waiting as </p>
+            <p class="inline" id="device_name"></p>
+            <p class="inline" id="dots">...</p>
+        </div>
     </div>
 </div>
 <script>
-    //init
-    $(".newfile").first().hide()
-
-    //queue
-    function Queue() {
-        this.queue = {};
-        this.tail = 0;
-        this.head = 0;
-    }
-
-    Queue.prototype.enqueue = function (element) {
-        this.queue[this.tail++] = element;
-    }
-
-    Queue.prototype.dequeue = function () {
-        if (this.tail == this.head) {
-            return undefined
-        }
-
-        let element = this.queue[this.head]
-        delete element
-        return element
-    }
-
-    let file_queue = new Queue()
+    let file_queue = []
     let currently_displaying = false
-    let current_file;
 
     //file display
     function display_queued() {
-        if (!file_queue.queue.empty() && !currently_displaying) {
+        if (file_queue.length != 0 && !currently_displaying) {
             currently_displaying = true
-            current_file = file_queue.dequeue()
-
-            $("#filename").text(current_file.name)
-            $("#size").text(current_file.size)
-            $("#sender").text(current_file.sender)
-            $("#id").text(current_file.id)
-
-            $(".newfile").first().show()
+            current_file = file_queue.shift()
+            var answer = confirm("Do you want to download file " + current_file.name + "?\nSize: " + current_file.size + "\nSender: " + current_file.sender + "\nID: " + current_file.id)
+            if (answer) {
+                accept(current_file)
+            } else {
+                deny(current_file)
+            }
         }
     }
 
     //accept
-    $("#accept").click(function () {
+    function accept(file) {
         obj = new Object()
         obj.status = "accept"
-        obj.file = current_file
-        $.ajax({
-            type: "POST",
-            url: "/receive",
-            data: JSON.stringify(obj),
-            success: function (response) {
-                json = JSON.parse(response.responseText)
-                window.open("/" + json.link);
-                $(".newfile").first().hide()
+        obj.file = file
+        post("/receive", obj).then((r) => {
+            r.text().then((text) => {
+                json = JSON.parse(text)
+                window.location.href = window.location.href.replace("/receive", json.link)
                 currently_displaying = false
-            }
+            })
         })
-    })
+    }
 
     //accept
-    $("#deny").click(function () {
+    function deny(file) {
         obj = new Object()
         obj.status = "deny"
-        obj.file = current_file
-        $.ajax({
-            type: "POST",
-            url: "/receive",
-            data: JSON.stringify(obj),
-            success: function (response) {
-                $(".newfile").first().hide()
+        obj.file = file
+        post("/receive", obj).then((r) => {
+            r.text().then((text) => {
                 currently_displaying = false
-            }
+            })
         })
-    })
+    }
 
     let i = 0
 
@@ -107,21 +68,19 @@
     let t = setInterval(function () {
             obj = new Object()
             obj.status = "check"
-            $.ajax({
-                type: "POST",
-                url: "/receive",
-                data: JSON.stringify(obj),
-                success: function (response) {
-                    let json = JSON.parse(response.responseText)
-                    for (file of json.files) {
-                        file_queue.enqueue(file)
+            post("/receive", obj).then((r) => {
+                r.text().then((text) => {
+                    let json = JSON.parse(text)
+                    if(!currently_displaying) {
+                        for (let file of json.files) {
+                            file_queue.push(file)
+                        }
                     }
                     if (i == 0) {
-                        $("#device_name").text(response.device_name)
+                        $("#device_name").text(json.device_name)
                         i++;
                     }
-                }
-
+                })
             })
 
             display_queued()
@@ -131,6 +90,10 @@
 
     $("#cancel").click(function () {
         clearInterval(t);
+        $("#device_name").text("Cancelt")
+        $("#cancel").hide()
+        $("#dots").text("")
+        $("#loading").text("")
     })
 </script>
 <style>
@@ -144,7 +107,6 @@
         height: 100%;
         overflow-y: scroll;
         overflow-x: hidden;
-        background-color: crimson;
     }
 
     .dark_background {
@@ -164,13 +126,31 @@
         width: 55rem;
         margin: 0;
         position: absolute;
-        top: 30%;
+        top: 50%;
         left: 50%;
         transform: translate(-50%, -50%);
     }
 
+    .textDiv {
+        position: absolute;
+        left: 50%;
+        top: 50%;
+        transform: translate(-50%, -50%);
+        font-size: 32px;
+    }
+
     .inline {
         display: inline;
+    }
+
+    #cancel {
+        position: absolute;
+        font-size: 1rem;
+        left: 50%;
+        padding-left: 2rem;
+        padding-right: 2rem;
+        bottom: 1rem;
+        transform: translate(-63%, -50%);
     }
 </style>
 </body>

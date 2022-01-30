@@ -5,6 +5,7 @@
     <title>Title</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
     <script src="/jquery-3.6.0.min.js"></script>
+    <script src="/basics.js"></script>
 </head>
 <body>
 <input id="receiver" class="nav" type="text">
@@ -30,8 +31,9 @@
                 data: formData,
                 contentType: false,
                 processData: false,
-                success: function (response) {
-                    window.alert(JSON.parse(response.responseText).status)
+                success: function (text) {
+                    document.getElementById("file_input").value = null
+                    window.alert(JSON.parse(text).status)
                 },
             });
         }
