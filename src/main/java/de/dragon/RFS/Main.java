@@ -4,7 +4,6 @@ import com.eclipsesource.json.JsonArray;
 import com.eclipsesource.json.JsonObject;
 import com.sun.net.httpserver.*;
 import de.dragon.RFS.auth.Authenticator;
-import de.dragon.RFS.auth.Operation;
 import de.dragon.RFS.auth.Session;
 import de.dragon.RFS.file.DefinedRequestContext;
 import de.dragon.RFS.file.FileShare;
@@ -25,7 +24,7 @@ import java.util.concurrent.ThreadPoolExecutor;
 public class Main {
 
     public static ThreadPoolExecutor executor = (ThreadPoolExecutor) Executors.newCachedThreadPool();
-    private Authenticator authenticator;
+    public static Authenticator authenticator;
 
     private ArrayList<HttpContext> fileContexts = new ArrayList<>();
     private HttpServer server;
@@ -41,11 +40,14 @@ public class Main {
         server.createContext("/", this::root);
         server.createContext("/receive", this::receive);
         server.createContext("/send", this::send);
+        server.createContext("/jquery-3.6.0.min.js", (e) -> {
+            authenticator.authConnection(e);
+            sendFile(new File("./webroot/jquery-3.6.0.min.js"), e);
+        });
         server.setExecutor(null);
         server.start();
 
         System.out.println("Server started!");
-        System.out.println(new File("./").getAbsolutePath());
     }
 
     private void root(HttpExchange httpExchange) throws IOException {
@@ -62,8 +64,7 @@ public class Main {
             sendFile(new File("./webroot/receive.html"), httpExchange);
         } else if (httpExchange.getRequestMethod().equals("POST")) {
             JsonObject object = JsonObject.readFrom(new InputStreamReader(httpExchange.getRequestBody()));
-            if (object.get("status").toString().equals("check")) {
-                session.setOperation(Operation.RECEIVE);
+            if (object.get("status").toString().replace("\"", "").equals("check")) {
                 JsonArray array = new JsonArray();
                 for (FileShare share : session.getFiles().values()) {
                     JsonObject file = new JsonObject();
@@ -75,7 +76,7 @@ public class Main {
                 }
 
                 info.add("files", array);
-            } else if (object.get("status").toString().equals("accept")) {
+            } else if (object.get("status").toString().replace("\"", "").equals("accept")) {
                 FileShare file = session.getFiles().get(object.get("file").asObject().get("id"));
                 info.add("link", "/" + file.getId());
 
@@ -95,7 +96,7 @@ public class Main {
                 }));
 
                 contexts.get(0).getAttributes().put("timestamp", Instant.now().getEpochSecond());
-            } else if (object.get("status").toString().equals("deny")) {
+            } else if (object.get("status").toString().replace("\"", "").equals("deny")) {
                 session.removeFile(session.getFiles().get(object.get("file").asObject().get("id")));
             }
 
@@ -125,6 +126,7 @@ public class Main {
                         Integer.parseInt(httpExchange.getRequestHeaders().get("Content-Length").get(0)),
                         httpExchange.getRequestBody()));
             } catch (FileUploadException e) {
+                e.printStackTrace();
                 info.add("status", "encoding error");
                 info.add("device_name", session.getName());
                 sendJson(info, httpExchange);
@@ -137,7 +139,7 @@ public class Main {
                 if (i == 0) {
                     InputStreamReader reader = new InputStreamReader(f.getInputStream());
                     JsonObject target = JsonObject.readFrom(reader);
-                    receiver = target.get("receiver").toString();
+                    receiver = target.get("receiver").toString().replace("\"", "");
                     f.delete();
                 } else if(!receiver.equals("")){
                     Session receiverSession = authenticator.getSessionByName(receiver);
@@ -147,7 +149,7 @@ public class Main {
                         sendJson(info, httpExchange);
                         return;
                     } else {
-                        receiverSession.putFile(new FileShare(f, 0, session, receiverSession));
+                        receiverSession.putFile(new FileShare(f, 500, session, receiverSession));
                         info.add("status", "success, waiting for confirmation");
                     }
                 } else {
@@ -194,9 +196,10 @@ public class Main {
     }
 
     private void sendJson(JsonObject object, HttpExchange httpExchange) throws IOException {
-        httpExchange.sendResponseHeaders(200, object.size());
+        httpExchange.sendResponseHeaders(200, object.toString().length());
+        httpExchange.getResponseHeaders().add("Content-Type", "text/json");
         OutputStreamWriter os = new OutputStreamWriter(httpExchange.getResponseBody());
-        object.writeTo(os);
+        os.write(object.toString());
         os.close();
     }
 

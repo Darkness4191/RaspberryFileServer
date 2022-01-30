@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <title>Waiting for files...</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
     <script src="/jquery-3.6.0.min.js"></script>
 </head>
 <body>
@@ -39,7 +39,7 @@
     }
 
     Queue.prototype.dequeue = function () {
-        if(this.tail == this.head) {
+        if (this.tail == this.head) {
             return undefined
         }
 
@@ -54,7 +54,7 @@
 
     //file display
     function display_queued() {
-        if(!file_queue.queue.empty() && !currently_displaying) {
+        if (!file_queue.queue.empty() && !currently_displaying) {
             currently_displaying = true
             current_file = file_queue.dequeue()
 
@@ -77,12 +77,10 @@
             url: "/receive",
             data: JSON.stringify(obj),
             success: function (response) {
-                response.text().then((text) => {
-                    json = JSON.parse(text)
-                    window.open("/" + json.link);
-                    $(".newfile").first().hide()
-                    currently_displaying = false
-                })
+                json = JSON.parse(response.responseText)
+                window.open("/" + json.link);
+                $(".newfile").first().hide()
+                currently_displaying = false
             }
         })
     })
@@ -106,29 +104,30 @@
     let i = 0
 
     //check
-    let t = setInterval(function() {
-        obj = new Object()
-        obj.status = "check"
-        $.ajax({
-            type: "POST",
-            url: "/receive",
-            data: obj,
-            success: function (response) {
-                response.text().then((text) => {
-                    let json = JSON.parse(text)
+    let t = setInterval(function () {
+            obj = new Object()
+            obj.status = "check"
+            $.ajax({
+                type: "POST",
+                url: "/receive",
+                data: JSON.stringify(obj),
+                success: function (response) {
+                    let json = JSON.parse(response.responseText)
                     for (file of json.files) {
                         file_queue.enqueue(file)
                     }
-                    if(i == 0) {
+                    if (i == 0) {
                         $("#device_name").text(response.device_name)
                         i++;
                     }
-                })
-            }
-        })
+                }
 
-        display_queued()
-    }, 1000)
+            })
+
+            display_queued()
+        },
+        1000
+    )
 
     $("#cancel").click(function () {
         clearInterval(t);
@@ -139,12 +138,15 @@
         width: 100%;
         height: 100%;
     }
+
     body {
         width: 100%;
         height: 100%;
-        overflow: hidden;
+        overflow-y: scroll;
+        overflow-x: hidden;
         background-color: crimson;
     }
+
     .dark_background {
         width: 100%;
         height: 100%;
@@ -154,6 +156,7 @@
         content: '';
         background: rgba(0, 0, 0, 0.19);
     }
+
     .center {
         background-color: white;
         border-radius: 0.3rem;
@@ -165,6 +168,7 @@
         left: 50%;
         transform: translate(-50%, -50%);
     }
+
     .inline {
         display: inline;
     }

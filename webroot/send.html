@@ -20,20 +20,18 @@
             let formData = new FormData();
             let obj = new Object();
             let file = files[i];
-            obj.receiver = $("#receiver").text();
+            obj.receiver = document.getElementById("receiver").value
             formData.append("meta", JSON.stringify(obj));
             formData.append('file_' + i, files[i]);
 
-            ajaxList[rand] = $.ajax({
+            $.ajax({
                 url: '/send',
                 type: 'post',
                 data: formData,
                 contentType: false,
                 processData: false,
                 success: function (response) {
-                    response.text().then((text) => {
-                        window.alert(JSON.parse(text).status)
-                    })
+                    window.alert(JSON.parse(response.responseText).status)
                 },
             });
         }

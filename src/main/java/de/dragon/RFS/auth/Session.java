@@ -1,5 +1,6 @@
 package de.dragon.RFS.auth;
 
+import de.dragon.RFS.Main;
 import de.dragon.RFS.file.FileShare;
 import de.dragon.RFS.file.TimeStamp;
 
@@ -9,7 +10,6 @@ import java.util.UUID;
 
 public class Session extends TimeStamp {
 
-    private Operation operation;
     private HashMap<String, FileShare> files;
     private long operationLastChanged = 0;
     private String name;
@@ -18,20 +18,11 @@ public class Session extends TimeStamp {
         super();
 
         this.files = new HashMap<>();
-        this.name = UUID.randomUUID().toString();
+        this.name = Main.authenticator.getClosestName(Main.authenticator.generateID());
     }
 
     public String getName() {
         return name;
-    }
-
-    public Operation getOperation() {
-        return operation;
-    }
-
-    public void setOperation(Operation operation) {
-        this.operation = operation;
-        operationLastChanged = Instant.now().getEpochSecond();
     }
 
     public long getOperationLastChanged() {
