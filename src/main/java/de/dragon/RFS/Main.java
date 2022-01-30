@@ -26,7 +26,6 @@ public class Main {
     public static ThreadPoolExecutor executor = (ThreadPoolExecutor) Executors.newCachedThreadPool();
     public static Authenticator authenticator;
 
-    private ArrayList<HttpContext> fileContexts = new ArrayList<>();
     private HttpServer server;
 
     public static void main(String[] args) throws IOException {
@@ -139,10 +138,7 @@ public class Main {
                         Integer.parseInt(httpExchange.getRequestHeaders().get("Content-Length").get(0)),
                         httpExchange.getRequestBody()));
             } catch (FileUploadException e) {
-                e.printStackTrace();
-                info.add("status", "encoding error");
-                info.add("device_name", session.getName());
-                sendJson(info, httpExchange);
+                sendError("encoding error", session, info, httpExchange);
                 return;
             }
 
@@ -157,9 +153,7 @@ public class Main {
                 } else if(!receiver.equals("")){
                     Session receiverSession = authenticator.getSessionByName(receiver);
                     if(receiverSession == null) {
-                        info.add("status", "unknown receiver");
-                        info.add("device_name", session.getName());
-                        sendJson(info, httpExchange);
+                        sendError("unknown receiver", session, info, httpExchange);
                         return;
                     } else {
                         FileShare share = new FileShare(f, 500, session, receiverSession);
@@ -168,9 +162,7 @@ public class Main {
                         info.add("status", "success, waiting for confirmation\nFile ID: " + share.getId() + "\nYour ID: " + session.getName());
                     }
                 } else {
-                    info.add("status", "failed");
-                    info.add("device_name", session.getName());
-                    sendJson(info, httpExchange);
+                    sendError("failed", session, info, httpExchange);
                     return;
                 }
             }
@@ -216,6 +208,12 @@ public class Main {
         OutputStreamWriter os = new OutputStreamWriter(httpExchange.getResponseBody());
         os.write(object.toString());
         os.close();
+    }
+
+    private void sendError(String error, Session session, JsonObject object, HttpExchange httpExchange) throws IOException {
+        object.add("status", error);
+        object.add("device_name", session.getName());
+        sendJson(object, httpExchange);
     }
 
 }
