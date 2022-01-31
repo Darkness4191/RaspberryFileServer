@@ -102,6 +102,7 @@ public class Main {
                             httpExchange.getResponseHeaders().add("vary", "Accept-Encoding");
                             sendFile(file.getFile(), httpExchange);
                             server.removeContext(contexts.get(0));
+                            file.getFile().delete();
                         }
                     }
                 }));
